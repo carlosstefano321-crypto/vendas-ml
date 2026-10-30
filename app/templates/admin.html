@@ -1,19 +1,46 @@
 <!doctype html>
 <html lang="pt-BR">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Admin – cupons</title>
+<title>Admin</title>
 <style>
-:root{--bg:#f6f7f9;--text:#1c1e21;--card:#fff;--border:#d1d5db}
-@media (prefers-color-scheme:dark){:root{--bg:#111318;--text:#eceff4;--card:#1a1d24;--border:#2a2f3a}}
+:root{--bg:#f6f7f9;--text:#1c1e21;--card:#fff;--border:#d1d5db;--muted:#6b7280}
+@media (prefers-color-scheme:dark){:root{--bg:#111318;--text:#eceff4;--card:#1a1d24;--border:#2a2f3a;--muted:#9aa3b2}}
 body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);max-width:900px;margin:0 auto;padding:16px}
 form.add{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;background:var(--card);padding:14px;border:1px solid var(--border);border-radius:10px}
 label{font-size:.8rem;display:flex;flex-direction:column;gap:4px}
-input{padding:8px;border:1px solid var(--border);border-radius:6px;background:transparent;color:inherit}
+input,textarea{padding:8px;border:1px solid var(--border);border-radius:6px;background:transparent;color:inherit;font:inherit}
 button{padding:9px 14px;border:0;border-radius:6px;background:#2563eb;color:#fff;cursor:pointer}
+button.sec{background:transparent;color:inherit;border:1px solid var(--border);padding:5px 10px}
 table{width:100%;border-collapse:collapse;margin-top:18px;font-size:.85rem}td,th{border-bottom:1px solid var(--border);padding:6px;text-align:left}
+.muted{color:var(--muted);font-size:.85rem}
+.inline{display:inline}
+h2{margin-top:36px}
 </style></head>
 <body>
-<h1>Cupons</h1>
+
+<h1>Painel</h1>
+
+<h2>Produtos e categorias para buscar</h2>
+<p class="muted">A rotina automática busca estes termos no Mercado Livre. Exemplos: <i>fone bluetooth</i>, <i>air fryer</i>, <i>tênis corrida masculino</i>.
+{% if not terms %}Nenhum termo cadastrado ainda: usando os termos de reserva ({{ fallback|join(", ") }}).{% endif %}</p>
+<form class="add" method="post" action="/admin/terms">
+<input type="hidden" name="token" value="{{ token }}">
+<label style="grid-column:1/-1">Um ou vários termos (separe por vírgula ou por linha)
+<textarea name="terms" rows="3" required placeholder="fone bluetooth, air fryer, smartwatch"></textarea></label>
+<button type="submit">Adicionar termos</button>
+</form>
+<table>
+<tr><th>Termo</th><th>Status</th><th></th></tr>
+{% for t in terms %}
+<tr><td>{{ t.term }}</td><td>{{ "ativo" if t.active else "pausado" }}</td>
+<td>
+<form class="inline" method="post" action="/admin/terms/{{ t.id }}/toggle"><input type="hidden" name="token" value="{{ token }}"><button class="sec">{{ "Pausar" if t.active else "Ativar" }}</button></form>
+<form class="inline" method="post" action="/admin/terms/{{ t.id }}/delete"><input type="hidden" name="token" value="{{ token }}"><button class="sec">Excluir</button></form>
+</td></tr>
+{% endfor %}
+</table>
+
+<h2>Cupons</h2>
 <form class="add" method="post" action="/admin/coupons">
 <input type="hidden" name="token" value="{{ token }}">
 <label>Código<input name="code" required></label>
@@ -31,7 +58,7 @@ table{width:100%;border-collapse:collapse;margin-top:18px;font-size:.85rem}td,th
 {% for c in coupons %}
 <tr><td>{{ c.code }}</td><td>{{ c.percent }}</td><td>{{ c.fixed_amount }}</td><td>{{ c.max_discount }}</td><td>{{ c.min_purchase }}</td>
 <td>{{ c.valid_until.strftime('%d/%m/%Y') if c.valid_until else '—' }}</td><td>{{ c.terms or 'todos' }}</td>
-<td><form method="post" action="/admin/coupons/{{ c.id }}/delete"><input type="hidden" name="token" value="{{ token }}"><button>Excluir</button></form></td></tr>
+<td><form method="post" action="/admin/coupons/{{ c.id }}/delete"><input type="hidden" name="token" value="{{ token }}"><button class="sec">Excluir</button></form></td></tr>
 {% endfor %}
 </table>
 </body></html>
