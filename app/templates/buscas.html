@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Buscas</h1>
+<p class="muted">Produtos ou categorias que a rotina automática procura no Mercado Livre, por exemplo: <i>fone bluetooth</i>, <i>air fryer</i>.
+{% if not terms %}Nenhum termo cadastrado: usando os termos de reserva ({{ fallback|join(", ") }}).{% endif %}</p>
+<form class="add" method="post" action="/buscas">
+<label style="grid-column:1/-1">Um ou vários termos (separe por vírgula ou por linha)
+<textarea name="terms" rows="3" required placeholder="fone bluetooth, air fryer, smartwatch"></textarea></label>
+<button type="submit">Adicionar termos</button>
+</form>
+<table>
+<tr><th>Termo</th><th>Status</th><th></th></tr>
+{% for t in terms %}
+<tr><td>{{ t.term }}</td><td>{{ "ativo" if t.active else "pausado" }}</td>
+<td>
+<form class="inline" method="post" action="/buscas/{{ t.id }}/toggle"><button class="sec">{{ "Pausar" if t.active else "Ativar" }}</button></form>
+<form class="inline" method="post" action="/buscas/{{ t.id }}/delete"><button class="sec">Excluir</button></form>
+</td></tr>
+{% endfor %}
+</table>
+{% endblock %}
