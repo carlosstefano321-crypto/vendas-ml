@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Ofertas</h1>
+<p class="muted">Produtos com preço abaixo da referência, já considerando cupons cadastrados.</p>
+{% if rows %}
+<div class="grid">
+{% for o, p in rows %}
+<div class="card">
+  {% if p.thumbnail %}<img src="{{ p.thumbnail }}" alt="" loading="lazy">{% endif %}
+  <div class="title">{{ p.title }}</div>
+  <div><span class="old">{{ o.reference_price|brl }}</span> <span class="badge">{{ o.discount_pct|round|int }}% abaixo da referência</span></div>
+  <div class="price">{{ o.final_price|brl }}</div>
+  {% if o.coupon_code %}<div class="coupon">Cupom: {{ o.coupon_code }}</div>{% endif %}
+  {% if p.free_shipping %}<div class="muted">Frete grátis</div>{% endif %}
+  <a class="btn" href="{{ aff(p.permalink) }}" target="_blank" rel="sponsored noopener">Ver no Mercado Livre</a>
+</div>
+{% endfor %}
+</div>
+{% else %}
+<p>Nenhuma oferta no momento. Volte em instantes.</p>
+{% endif %}
+{% endblock %}
