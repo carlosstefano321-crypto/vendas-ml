@@ -62,7 +62,7 @@ def login(request: Request, token: str = Form("")):
         resp.status_code = 401
         return resp
     resp = RedirectResponse("/", status_code=303)
-    resp.set_cookie("admin_token", token, httponly=True, secure=True, samesite="lax", max_age=60 * 60 * 24 * 30)
+    resp.set_cookie("admin_token", token, httponly=True, secure=True, samesite="lax", max_age=60 * 60 * 24 * 365)
     return resp
 
 
@@ -81,6 +81,7 @@ def old_admin():
 # ---------- páginas ----------
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
+    need_admin(request)
     with SessionLocal() as s:
         stats = {
             "n_offers": s.query(func.count(Offer.product_id)).scalar() or 0,
@@ -94,6 +95,7 @@ def home(request: Request):
 
 @app.get("/ofertas", response_class=HTMLResponse)
 def ofertas(request: Request):
+    need_admin(request)
     with SessionLocal() as s:
         rows = (
             s.query(Offer, Product).join(Product, Product.id == Offer.product_id)
