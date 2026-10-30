@@ -1,4 +1,7 @@
+import os
 import secrets
+import threading
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -7,8 +10,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
 
-from . import config
-from .db import Coupon, Offer, Product, SearchTerm, SessionLocal, init_db
+from . import config, worker
+from .db import Coupon, Offer, Product, SearchTerm, Setting, SessionLocal, init_db, utcnow
 from .pricing import affiliate_link, brl
 
 app = FastAPI(title="Ofertas ML")
@@ -24,9 +27,42 @@ def br_time(dt):
 templates.env.filters["br_time"] = br_time
 
 
+# ---------- busca rodando dentro do site ----------
+_lock = threading.Lock()
+RUN = {"running": False, "result": None}
+
+
+def _do_run() -> None:
+    if not _lock.acquire(blocking=False):
+        return
+    try:
+        RUN["running"] = True
+        try:
+            RUN["result"] = worker.run()
+        except Exception as e:  # noqa: BLE001
+            RUN["result"] = {"terms_ok": 0, "items": 0, "offers": 0,
+                             "errors": [f"Erro inesperado: {str(e)[:300]}"], "finished": utcnow()}
+    finally:
+        RUN["running"] = False
+        _lock.release()
+
+
+def _auto_loop(minutes: int) -> None:
+    time.sleep(90)
+    while True:
+        _do_run()
+        time.sleep(minutes * 60)
+
+
 @app.on_event("startup")
 def _startup() -> None:
     init_db()
+    try:
+        minutes = int(os.getenv("AUTO_REFRESH_MINUTES") or 30)
+    except ValueError:
+        minutes = 30
+    if minutes > 0:
+        threading.Thread(target=_auto_loop, args=(minutes,), daemon=True).start()
 
 
 # ---------- acesso ----------
@@ -145,7 +181,8 @@ def buscas(request: Request):
     need_admin(request)
     with SessionLocal() as s:
         terms = s.query(SearchTerm).order_by(SearchTerm.id.desc()).all()
-    return page(request, "buscas.html", "buscas", terms=terms, fallback=config.SEARCH_TERMS)
+        min_pct = worker.get_min_pct(s)
+    return page(request, "buscas.html", "buscas", terms=terms, fallback=config.SEARCH_TERMS, min_pct=min_pct)
 
 
 @app.post("/buscas")
@@ -191,10 +228,34 @@ def status(request: Request):
             "last": s.query(func.max(Product.updated_at)).scalar(),
             "n_products": s.query(func.count(Product.id)).scalar() or 0,
             "n_terms": s.query(func.count(SearchTerm.id)).filter(SearchTerm.active.is_(True)).scalar() or 0,
+            "min_pct": worker.get_min_pct(s),
         }
     checks = [
         ("Credenciais do Mercado Livre", bool(config.ML_CLIENT_ID and config.ML_CLIENT_SECRET)),
         ("Link de afiliado configurado", config.AFFILIATE_URL_TEMPLATE.strip() not in ("", "{url}")),
         ("Telegram configurado", bool(config.TELEGRAM_BOT_TOKEN and config.TELEGRAM_CHAT_ID)),
     ]
-    return page(request, "status.html", "status", checks=checks, min_pct=config.MIN_DISCOUNT_PCT, **info)
+    return page(request, "status.html", "status", checks=checks, run=RUN, **info)
+
+
+@app.post("/atualizar")
+def atualizar(request: Request):
+    need_admin(request)
+    if not RUN["running"]:
+        RUN["running"] = True
+        threading.Thread(target=_do_run, daemon=True).start()
+    return RedirectResponse("/status", status_code=303)
+
+
+@app.post("/config/desconto")
+def set_min_discount(request: Request, pct: float = Form(...)):
+    need_admin(request)
+    pct = max(0.0, min(pct, 95.0))
+    with SessionLocal() as s:
+        row = s.get(Setting, "min_discount_pct")
+        if row is None:
+            s.add(Setting(key="min_discount_pct", value=str(pct)))
+        else:
+            row.value = str(pct)
+        s.commit()
+    return RedirectResponse("/buscas", status_code=303)
