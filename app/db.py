@@ -53,6 +53,13 @@ class Coupon(Base):
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
+class SearchTerm(Base):
+    __tablename__ = "search_terms"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    term: Mapped[str] = mapped_column(String(200), unique=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
 class Offer(Base):
     __tablename__ = "offers"
     product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), primary_key=True)
