@@ -1,46 +1,26 @@
-<!doctype html>
-<html lang="pt-BR">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ofertas e cupons – Mercado Livre</title>
-<style>
-:root{--bg:#f6f7f9;--card:#fff;--text:#1c1e21;--muted:#6b7280;--accent:#2563eb;--green:#15803d;--border:#e5e7eb}
-@media (prefers-color-scheme:dark){:root{--bg:#111318;--card:#1a1d24;--text:#eceff4;--muted:#9aa3b2;--accent:#60a5fa;--green:#4ade80;--border:#2a2f3a}}
-*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--text)}
-header,main,footer{max-width:1000px;margin:0 auto;padding:16px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
-.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px}
-.card img{width:100%;height:170px;object-fit:contain;background:#fff;border-radius:8px}
-.title{font-size:.95rem;line-height:1.3}.old{color:var(--muted);text-decoration:line-through;font-size:.85rem}
-.price{font-size:1.4rem;font-weight:700}.badge{color:var(--green);font-weight:600;font-size:.85rem}
-.coupon{border:1px dashed var(--accent);color:var(--accent);padding:4px 8px;border-radius:6px;font-family:monospace;font-size:.85rem;align-self:flex-start}
-.btn{margin-top:auto;text-align:center;background:var(--accent);color:#fff;padding:10px;border-radius:8px;text-decoration:none;font-weight:600}
-.muted{color:var(--muted);font-size:.85rem}
-</style>
-</head>
-<body>
-<header><h1>Ofertas e cupons – Mercado Livre</h1>
-<p class="muted">Atualizado automaticamente. Preços e cupons podem mudar a qualquer momento; confirme no checkout.</p></header>
-<main>
-{% if rows %}
-<div class="grid">
-{% for o, p in rows %}
-<div class="card">
-  {% if p.thumbnail %}<img src="{{ p.thumbnail }}" alt="" loading="lazy">{% endif %}
-  <div class="title">{{ p.title }}</div>
-  <div><span class="old">{{ o.reference_price|brl }}</span> <span class="badge">{{ o.discount_pct|round|int }}% abaixo da referência</span></div>
-  <div class="price">{{ o.final_price|brl }}</div>
-  {% if o.coupon_code %}<div class="coupon">Cupom: {{ o.coupon_code }}</div>{% endif %}
-  {% if p.free_shipping %}<div class="muted">Frete grátis</div>{% endif %}
-  <a class="btn" href="{{ aff(p.permalink) }}" target="_blank" rel="sponsored noopener">Ver no Mercado Livre</a>
+{% extends "base.html" %}
+{% block content %}
+<h1>Início</h1>
+<p class="muted">Resumo rápido. Clique em um bloco para abrir a área.</p>
+<div class="tiles">
+  <a class="tile" href="/ofertas">
+    <div class="ic">🔥</div><h3>Ofertas</h3>
+    <div class="num">{{ n_offers }}</div>
+    <p>{% if best %}Melhor desconto: {{ best|round|int }}%{% else %}Nenhuma oferta ainda{% endif %}</p>
+  </a>
+  {% if admin %}
+  <a class="tile" href="/cupons">
+    <div class="ic">🏷️</div><h3>Cupons</h3>
+    <div class="num">{{ n_coupons }}</div><p>Cupons ativos</p>
+  </a>
+  <a class="tile" href="/buscas">
+    <div class="ic">🔎</div><h3>Buscas</h3>
+    <div class="num">{{ n_terms }}</div><p>Termos monitorados</p>
+  </a>
+  <a class="tile" href="/status">
+    <div class="ic">📊</div><h3>Status</h3>
+    <div class="num" style="font-size:1.2rem">{{ last|br_time }}</div><p>Última atualização de preços</p>
+  </a>
+  {% endif %}
 </div>
-{% endfor %}
-</div>
-{% else %}
-<p>Nenhuma oferta no momento. Volte em instantes.</p>
-{% endif %}
-</main>
-<footer class="muted">Este site usa links de afiliado: podemos receber comissão por compras feitas pelos links, sem custo extra para você.</footer>
-</body>
-</html>
+{% endblock %}
