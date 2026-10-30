@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Entrar</h1>
+<p class="muted">Área restrita para gerenciar cupons e buscas.</p>
+<form class="add" method="post" action="/login" style="max-width:420px">
+<label>Senha de administrador<input name="token" type="password" required autofocus></label>
+{% if error %}<div class="muted" style="color:#dc2626">Senha incorreta.</div>{% endif %}
+<button type="submit">Entrar</button>
+</form>
+{% endblock %}
