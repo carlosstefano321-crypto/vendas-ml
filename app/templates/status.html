@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Status</h1>
+<p class="muted">Confira se está tudo configurado.</p>
+<div class="panel">
+  {% for label, ok in checks %}
+  <div class="row"><span>{{ label }}</span><span>{{ "✅ ok" if ok else "⚠️ pendente" }}</span></div>
+  {% endfor %}
+  <div class="row"><span>Última atualização de preços</span><span>{{ last|br_time }}</span></div>
+  <div class="row"><span>Produtos monitorados</span><span>{{ n_products }}</span></div>
+  <div class="row"><span>Termos de busca ativos</span><span>{{ n_terms }}</span></div>
+  <div class="row"><span>Desconto mínimo para virar oferta</span><span>{{ min_pct|round|int }}%</span></div>
+</div>
+{% endblock %}
