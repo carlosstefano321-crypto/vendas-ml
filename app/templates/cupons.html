@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Cupons</h1>
+<p class="muted">Cadastre os cupons que você quer que o sistema aplique no cálculo do preço final.</p>
+<form class="add" method="post" action="/cupons">
+<label>Código<input name="code" required></label>
+<label>Desconto %<input name="percent" type="number" step="0.01" value="0"></label>
+<label>Valor fixo R$ (no lugar do %)<input name="fixed_amount" type="number" step="0.01" value="0"></label>
+<label>Desconto máximo R$ (0 = sem teto)<input name="max_discount" type="number" step="0.01" value="0"></label>
+<label>Compra mínima R$<input name="min_purchase" type="number" step="0.01" value="0"></label>
+<label>Válido até<input name="valid_until" type="date"></label>
+<label>Termos aceitos (vírgula; vazio = todos)<input name="terms"></label>
+<label>Link da campanha<input name="campaign_url"></label>
+<button type="submit">Adicionar cupom</button>
+</form>
+<table>
+<tr><th>Código</th><th>%</th><th>Fixo</th><th>Teto</th><th>Mínimo</th><th>Validade</th><th>Termos</th><th></th></tr>
+{% for c in coupons %}
+<tr><td>{{ c.code }}</td><td>{{ c.percent }}</td><td>{{ c.fixed_amount }}</td><td>{{ c.max_discount }}</td><td>{{ c.min_purchase }}</td>
+<td>{{ c.valid_until.strftime('%d/%m/%Y') if c.valid_until else '—' }}</td><td>{{ c.terms or 'todos' }}</td>
+<td><form class="inline" method="post" action="/cupons/{{ c.id }}/delete"><button class="sec">Excluir</button></form></td></tr>
+{% endfor %}
+</table>
+{% endblock %}
