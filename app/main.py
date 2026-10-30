@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from . import config
-from .db import Coupon, Offer, Product, SessionLocal, init_db
+from .db import Coupon, Offer, Product, SearchTerm, SessionLocal, init_db
 from .pricing import affiliate_link, brl
 
 app = FastAPI(title="Ofertas ML")
@@ -46,7 +46,11 @@ def admin(request: Request, token: str = ""):
     _check(token)
     with SessionLocal() as s:
         coupons = s.query(Coupon).order_by(Coupon.id.desc()).all()
-    return templates.TemplateResponse(request, "admin.html", {"coupons": coupons, "token": token})
+        terms = s.query(SearchTerm).order_by(SearchTerm.id.desc()).all()
+    return templates.TemplateResponse(
+        request, "admin.html",
+        {"coupons": coupons, "terms": terms, "token": token, "fallback": config.SEARCH_TERMS},
+    )
 
 
 @app.post("/admin/coupons")
@@ -73,5 +77,40 @@ def delete_coupon(cid: int, token: str = Form("")):
         c = s.get(Coupon, cid)
         if c:
             s.delete(c)
+            s.commit()
+    return RedirectResponse(f"/admin?token={token}", status_code=303)
+
+
+@app.post("/admin/terms")
+def add_terms(token: str = Form(""), terms: str = Form(...)):
+    _check(token)
+    items = {t.strip() for t in terms.replace("\n", ",").split(",") if t.strip()}
+    with SessionLocal() as s:
+        existing = {t.term.lower() for t in s.query(SearchTerm).all()}
+        for t in sorted(items):
+            if t.lower() not in existing:
+                s.add(SearchTerm(term=t[:200]))
+        s.commit()
+    return RedirectResponse(f"/admin?token={token}", status_code=303)
+
+
+@app.post("/admin/terms/{tid}/toggle")
+def toggle_term(tid: int, token: str = Form("")):
+    _check(token)
+    with SessionLocal() as s:
+        t = s.get(SearchTerm, tid)
+        if t:
+            t.active = not t.active
+            s.commit()
+    return RedirectResponse(f"/admin?token={token}", status_code=303)
+
+
+@app.post("/admin/terms/{tid}/delete")
+def delete_term(tid: int, token: str = Form("")):
+    _check(token)
+    with SessionLocal() as s:
+        t = s.get(SearchTerm, tid)
+        if t:
+            s.delete(t)
             s.commit()
     return RedirectResponse(f"/admin?token={token}", status_code=303)
