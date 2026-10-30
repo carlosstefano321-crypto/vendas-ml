@@ -23,4 +23,9 @@
   </a>
   {% endif %}
 </div>
+{% if admin %}
+<form method="post" action="/atualizar" style="margin-top:20px">
+  <button type="submit">🔄 Buscar ofertas agora</button>
+</form>
+{% endif %}
 {% endblock %}
