@@ -3,6 +3,10 @@
 <h1>Buscas</h1>
 <p class="muted">Produtos ou categorias que a rotina automática procura no Mercado Livre, por exemplo: <i>fone bluetooth</i>, <i>air fryer</i>.
 {% if not terms %}Nenhum termo cadastrado: usando os termos de reserva ({{ fallback|join(", ") }}).{% endif %}</p>
+<form class="add" method="post" action="/config/desconto" style="max-width:420px">
+<label>Desconto mínimo para virar oferta (%)<input name="pct" type="number" step="0.5" min="0" max="95" value="{{ min_pct|round(1) }}"></label>
+<button type="submit">Salvar desconto mínimo</button>
+</form>
 <form class="add" method="post" action="/buscas">
 <label style="grid-column:1/-1">Um ou vários termos (separe por vírgula ou por linha)
 <textarea name="terms" rows="3" required placeholder="fone bluetooth, air fryer, smartwatch"></textarea></label>
