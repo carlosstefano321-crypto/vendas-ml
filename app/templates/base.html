@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ofertas ML</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--text:#1c1e21;--muted:#6b7280;--accent:#2563eb;--green:#15803d;--border:#e5e7eb;--side:#fff}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--card:#1a1d24;--text:#eceff4;--muted:#9aa3b2;--accent:#60a5fa;--green:#4ade80;--border:#2a2f3a;--side:#151820}}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh}
+.side{width:220px;background:var(--side);border-right:1px solid var(--border);padding:18px 12px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh}
+.brand{font-weight:700;font-size:1.05rem;padding:4px 10px 14px}
+.side nav{display:flex;flex-direction:column;gap:4px}
+.side a{color:var(--text);text-decoration:none;padding:10px 12px;border-radius:8px;font-size:.95rem}
+.side a:hover{background:var(--bg)}
+.side a.on{background:var(--accent);color:#fff}
+.side .foot{margin-top:auto}
+main{flex:1;padding:24px;max-width:1000px}
+h1{margin:0 0 4px}.muted{color:var(--muted);font-size:.9rem}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin-top:20px}
+.tile{display:block;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;color:var(--text);text-decoration:none;transition:transform .1s}
+.tile:hover{transform:translateY(-2px);border-color:var(--accent)}
+.tile .ic{font-size:1.6rem}.tile h3{margin:8px 0 2px}.tile .num{font-size:2rem;font-weight:700}.tile p{margin:4px 0 0;color:var(--muted);font-size:.85rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin-top:18px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.card img{width:100%;height:170px;object-fit:contain;background:#fff;border-radius:8px}
+.title{font-size:.95rem;line-height:1.3}.old{color:var(--muted);text-decoration:line-through;font-size:.85rem}
+.price{font-size:1.4rem;font-weight:700}.badge{color:var(--green);font-weight:600;font-size:.85rem}
+.coupon{border:1px dashed var(--accent);color:var(--accent);padding:4px 8px;border-radius:6px;font-family:monospace;font-size:.85rem;align-self:flex-start}
+.btn,button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:10px 14px;font-weight:600;cursor:pointer;text-decoration:none;font:inherit}
+.card .btn{margin-top:auto;text-align:center}
+button.sec{background:transparent;color:var(--text);border:1px solid var(--border);padding:5px 10px;font-weight:400}
+form.add{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;background:var(--card);padding:14px;border:1px solid var(--border);border-radius:12px;margin-top:16px}
+label{font-size:.8rem;display:flex;flex-direction:column;gap:4px}
+input,textarea{padding:8px;border:1px solid var(--border);border-radius:6px;background:transparent;color:inherit;font:inherit}
+table{width:100%;border-collapse:collapse;margin-top:18px;font-size:.85rem;display:block;overflow-x:auto}
+td,th{border-bottom:1px solid var(--border);padding:7px;text-align:left;white-space:nowrap}
+.inline{display:inline}.panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:6px 16px;margin-top:16px}
+.row{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}.row:last-child{border:0}
+footer{margin-top:30px}
+@media (max-width:760px){body{flex-direction:column}.side{width:100%;height:auto;position:static;flex-direction:row;flex-wrap:wrap;align-items:center;padding:10px}
+.brand{padding:4px 8px}.side nav{flex-direction:row;flex-wrap:wrap}.side .foot{margin:0 0 0 auto}main{padding:16px}}
+</style>
+</head>
+<body>
+<aside class="side">
+  <div class="brand">🛒 Ofertas ML</div>
+  <nav>
+    <a href="/" class="{{ 'on' if active == 'inicio' }}">🏠 Início</a>
+    <a href="/ofertas" class="{{ 'on' if active == 'ofertas' }}">🔥 Ofertas</a>
+    {% if admin %}
+    <a href="/cupons" class="{{ 'on' if active == 'cupons' }}">🏷️ Cupons</a>
+    <a href="/buscas" class="{{ 'on' if active == 'buscas' }}">🔎 Buscas</a>
+    <a href="/status" class="{{ 'on' if active == 'status' }}">📊 Status</a>
+    {% endif %}
+  </nav>
+  <div class="foot">{% if admin %}<a href="/logout">Sair</a>{% else %}<a href="/login">Entrar</a>{% endif %}</div>
+</aside>
+<main>
+{% block content %}{% endblock %}
+<footer class="muted">Este site usa links de afiliado: podemos receber comissão por compras feitas pelos links, sem custo extra para você. Preços e cupons podem mudar a qualquer momento.</footer>
+</main>
+</body>
+</html>
