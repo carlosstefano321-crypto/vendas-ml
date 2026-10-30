@@ -9,13 +9,19 @@ from datetime import timedelta
 import requests
 
 from . import config, ml_client
-from .db import Coupon, Offer, PricePoint, Product, SessionLocal, init_db, utcnow
+from .db import Coupon, Offer, PricePoint, Product, SearchTerm, SessionLocal, init_db, utcnow
 from .pricing import affiliate_link, best_deal, brl
+
+
+def get_terms(s) -> list[str]:
+    """Termos cadastrados no /admin; se nao houver nenhum, usa a variavel SEARCH_TERMS."""
+    terms = [t.term for t in s.query(SearchTerm).filter(SearchTerm.active.is_(True)).order_by(SearchTerm.id).all()]
+    return terms or config.SEARCH_TERMS
 
 
 def collect(s, run_start) -> int:
     ok_terms = 0
-    for term in config.SEARCH_TERMS:
+    for term in get_terms(s):
         try:
             items = ml_client.search(term, config.RESULTS_PER_TERM)
         except Exception as e:  # noqa: BLE001
