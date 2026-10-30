@@ -60,6 +60,12 @@ class SearchTerm(Base):
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
+class Setting(Base):
+    __tablename__ = "settings"
+    key: Mapped[str] = mapped_column(String(80), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, default="")
+
+
 class Offer(Base):
     __tablename__ = "offers"
     product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), primary_key=True)
