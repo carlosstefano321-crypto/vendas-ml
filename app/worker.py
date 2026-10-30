@@ -1,6 +1,7 @@
-"""Rotina automática: busca preços, aplica cupons, gera ofertas e publica no Telegram.
+"""Rotina de busca: coleta preços, aplica cupons, gera ofertas e (opcional) publica no Telegram.
 
-Rode com:  python -m app.worker
+É chamada pelo botão "Buscar agora" do site e pela atualização automática.
+Também pode rodar sozinha:  python -m app.worker
 """
 import html
 import statistics
@@ -9,25 +10,41 @@ from datetime import timedelta
 import requests
 
 from . import config, ml_client
-from .db import Coupon, Offer, PricePoint, Product, SearchTerm, SessionLocal, init_db, utcnow
+from .db import Coupon, Offer, PricePoint, Product, SearchTerm, Setting, SessionLocal, init_db, utcnow
 from .pricing import affiliate_link, best_deal, brl
 
 
+def _explain(e: Exception) -> str:
+    resp = getattr(e, "response", None)
+    if resp is not None:
+        return f"HTTP {resp.status_code}: {resp.text[:200]}"
+    return str(e)[:200]
+
+
 def get_terms(s) -> list[str]:
-    """Termos cadastrados no /admin; se nao houver nenhum, usa a variavel SEARCH_TERMS."""
+    """Termos cadastrados no site; se não houver nenhum, usa a variável SEARCH_TERMS."""
     terms = [t.term for t in s.query(SearchTerm).filter(SearchTerm.active.is_(True)).order_by(SearchTerm.id).all()]
     return terms or config.SEARCH_TERMS
 
 
-def collect(s, run_start) -> int:
-    ok_terms = 0
+def get_min_pct(s) -> float:
+    row = s.get(Setting, "min_discount_pct")
+    try:
+        return float(row.value) if row and row.value != "" else config.MIN_DISCOUNT_PCT
+    except ValueError:
+        return config.MIN_DISCOUNT_PCT
+
+
+def collect(s, run_start, errors: list) -> tuple[int, int]:
+    ok_terms, n_items = 0, 0
     for term in get_terms(s):
         try:
             items = ml_client.search(term, config.RESULTS_PER_TERM)
         except Exception as e:  # noqa: BLE001
-            print(f"[erro] busca '{term}': {e}")
+            errors.append(f"Busca '{term}': {_explain(e)}")
             continue
         ok_terms += 1
+        n_items += len(items)
         for it in items:
             p = s.get(Product, it["id"])
             if p is None:
@@ -39,7 +56,7 @@ def collect(s, run_start) -> int:
             s.flush()
             s.add(PricePoint(product_id=p.id, price=p.price, ts=run_start))
         s.commit()
-    return ok_terms
+    return ok_terms, n_items
 
 
 def reference_price(s, p, run_start):
@@ -57,7 +74,7 @@ def reference_price(s, p, run_start):
     return None
 
 
-def build_offers(s, run_start) -> None:
+def build_offers(s, run_start, min_pct: float) -> int:
     now = utcnow()
     coupons = s.query(Coupon).filter(Coupon.active.is_(True)).all()
     keep = set()
@@ -67,7 +84,7 @@ def build_offers(s, run_start) -> None:
             continue
         final, coupon = best_deal(p.price, p.term, coupons, now)
         pct = (ref - final) / ref * 100
-        if pct < config.MIN_DISCOUNT_PCT:
+        if pct < min_pct:
             continue
         keep.add(p.id)
         code = coupon.code if coupon else None
@@ -84,9 +101,10 @@ def build_offers(s, run_start) -> None:
         if o.product_id not in keep:
             s.delete(o)
     s.commit()
+    return len(keep)
 
 
-def post_telegram(s) -> None:
+def post_telegram(s, errors: list) -> None:
     if not (config.TELEGRAM_BOT_TOKEN and config.TELEGRAM_CHAT_ID):
         return
     pending = (
@@ -115,7 +133,8 @@ def post_telegram(s) -> None:
             o.posted = True
             s.commit()
         except Exception as e:  # noqa: BLE001
-            print(f"[erro] telegram: {e}")
+            errors.append("Telegram: falha ao publicar (confira o token e o ID do canal).")
+            break
 
 
 def cleanup(s) -> None:
@@ -123,18 +142,23 @@ def cleanup(s) -> None:
     s.commit()
 
 
-def run() -> None:
+def run() -> dict:
     init_db()
     run_start = utcnow()
+    errors: list = []
+    result = {"terms_ok": 0, "items": 0, "offers": 0, "errors": errors, "finished": None}
     with SessionLocal() as s:
-        if collect(s, run_start) == 0:
-            print("Nenhuma busca funcionou; ofertas anteriores mantidas.")
-            return
-        build_offers(s, run_start)
-        post_telegram(s)
-        cleanup(s)
-    print("Rotina concluída.")
+        ok, n_items = collect(s, run_start, errors)
+        result["terms_ok"], result["items"] = ok, n_items
+        if ok == 0:
+            errors.append("Nenhuma busca funcionou; ofertas anteriores mantidas.")
+        else:
+            result["offers"] = build_offers(s, run_start, get_min_pct(s))
+            post_telegram(s, errors)
+            cleanup(s)
+    result["finished"] = utcnow()
+    return result
 
 
 if __name__ == "__main__":
-    run()
+    print(run())
