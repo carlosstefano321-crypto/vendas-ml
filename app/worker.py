@@ -117,7 +117,7 @@ def build_offers(s, run_start, min_pct: float) -> int:
         if review is None:
             s.add(ReviewQueue(product_id=product.id, message=build_message(product, offer),
                               status="pending", created_at=now, updated_at=now))
-        elif changed and review.status != "published":
+        elif changed:
             review.message = build_message(product, offer)
             review.status = "pending"
             review.updated_at = now

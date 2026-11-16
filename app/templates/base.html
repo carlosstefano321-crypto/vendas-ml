@@ -51,7 +51,7 @@ footer{margin-top:30px}
     <a href="/" class="{{ 'on' if active == 'inicio' }}">🏠 Início</a>
     <a href="/ofertas" class="{{ 'on' if active == 'ofertas' }}">🔥 Ofertas</a>
     {% if admin %}
-    <a href="/revisao">✍️ Revisão</a>
+    <a href="/revisao" class="{{ 'on' if active == 'revisao' }}">✍️ Revisão</a>
     <a href="/cupons" class="{{ 'on' if active == 'cupons' }}">🏷️ Cupons</a>
     <a href="/buscas" class="{{ 'on' if active == 'buscas' }}">🔎 Buscas</a>
     <a href="/status" class="{{ 'on' if active == 'status' }}">📊 Status</a>
