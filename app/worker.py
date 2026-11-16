@@ -1,4 +1,4 @@
-"""Rotina de busca: coleta preços, aplica cupons, gera ofertas e (opcional) publica no Telegram.
+"""Rotina de busca: coleta preços, aplica cupons verificados e cria itens para revisão manual.
 
 É chamada pelo botão "Buscar agora" do site e pela atualização automática.
 Também pode rodar sozinha:  python -m app.worker

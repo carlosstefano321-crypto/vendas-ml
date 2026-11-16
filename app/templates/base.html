@@ -51,7 +51,7 @@ footer{margin-top:30px}
     <a href="/" class="{{ 'on' if active == 'inicio' }}">🏠 Início</a>
     <a href="/ofertas" class="{{ 'on' if active == 'ofertas' }}">🔥 Ofertas</a>
     {% if admin %}
-    <a href="/revisao" class="on">✍️ Revisão</a>
+    <a href="/revisao">✍️ Revisão</a>
     <a href="/cupons" class="{{ 'on' if active == 'cupons' }}">🏷️ Cupons</a>
     <a href="/buscas" class="{{ 'on' if active == 'buscas' }}">🔎 Buscas</a>
     <a href="/status" class="{{ 'on' if active == 'status' }}">📊 Status</a>
@@ -61,7 +61,7 @@ footer{margin-top:30px}
 </aside>
 <main>
 {% block content %}{% endblock %}
-<footer class="muted">Este site usa links de afiliado: podemos receber comissão por compras feitas pelos links, sem custo extra para você. Preços e cupons podem mudar a qualquer momento.</footer>
+<footer class="muted">Ferramenta interna para pesquisar, calcular e revisar promoções antes da divulgação.</footer>
 </main>
 </body>
 </html>
