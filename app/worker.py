@@ -17,7 +17,22 @@ from .pricing import affiliate_link, best_deal, brl
 def _explain(e: Exception) -> str:
     resp = getattr(e, "response", None)
     if resp is not None:
-        return f"HTTP {resp.status_code}: {resp.text[:200]}"
+        detail = f"HTTP {resp.status_code}: {resp.text[:200]}"
+        request_id = (
+            resp.headers.get("x-request-id")
+            or resp.headers.get("x-correlation-id")
+            or resp.headers.get("x-ml-request-id")
+        )
+        if resp.status_code == 403:
+            detail += (
+                " | A API recusou a busca mesmo após a tentativa pública/autenticada. "
+                "Verifique no DevCenter se a aplicação está ativa, as permissões e a "
+                "lista de IPs permitidos. Se persistir, envie o request-id ao suporte "
+                "do Mercado Livre. Esse bloqueio pode depender de liberação do lado da API."
+            )
+        if request_id:
+            detail += f" | request-id: {request_id}"
+        return detail
     return str(e)[:200]
 
 
