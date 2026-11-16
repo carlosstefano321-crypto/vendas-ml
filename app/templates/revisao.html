@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Central de revisão</h1>
+<p class="muted">Confira os preços e o texto. Só ofertas aprovadas por você são enviadas ao Telegram.</p>
+{% if request.query_params.get("publicada") %}<div class="panel">Mensagem publicada no Telegram.</div>{% endif %}
+{% if request.query_params.get("erro") %}<div class="panel">Falha ao publicar. Confira as credenciais do Telegram.</div>{% endif %}
+{% if rows %}<div class="grid">{% for item, offer, product in rows %}
+<section class="card">
+{% if product.thumbnail %}<img src="{{ product.thumbnail }}" alt="" loading="lazy">{% endif %}
+<strong>{{ product.title }}</strong>
+<div class="old">Referência: {{ offer.reference_price|brl }}</div>
+<div class="price">{{ offer.final_price|brl }}</div>
+<div class="badge">{{ offer.discount_pct|round|int }}% abaixo da referência</div>
+{% if offer.coupon_code %}<div class="coupon">Cupom: {{ offer.coupon_code }}</div>{% endif %}
+<div class="muted">Preço atual: {{ offer.price|brl }} · {{ product.term }}</div>
+<form method="post" action="/revisao/{{ product.id }}/salvar"><label>Mensagem<textarea name="message" rows="8" required>{{ item.message }}</textarea></label><button type="submit">Salvar mensagem</button></form>
+<form method="post" action="/revisao/{{ product.id }}/publicar"><button type="submit">Aprovar e publicar no Telegram</button></form>
+<form method="post" action="/revisao/{{ product.id }}/descartar"><button class="sec" type="submit">Descartar oferta</button></form>
+<a href="{{ product.permalink }}" target="_blank" rel="noopener">Conferir anúncio original</a>
+</section>{% endfor %}</div>
+{% else %}<div class="panel">Nenhuma oferta aguardando revisão. Execute uma busca para encontrar novas oportunidades.</div>{% endif %}
+{% if history %}<h2>Histórico recente</h2><div class="panel">{% for item, product in history %}<div class="row"><span>{{ product.title }}</span><span>{{ item.status }} · {{ item.updated_at|br_time }}</span></div>{% endfor %}</div>{% endif %}
+{% endblock %}
