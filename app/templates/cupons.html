@@ -14,10 +14,10 @@
 <button type="submit">Adicionar cupom</button>
 </form>
 <table>
-<tr><th>Código</th><th>%</th><th>Fixo</th><th>Teto</th><th>Mínimo</th><th>Validade</th><th>Termos</th><th>Origem</th><th>Verificação</th><th></th></tr>
+<tr><th>Código</th><th>%</th><th>Fixo</th><th>Teto</th><th>Mínimo</th><th>Validade</th><th>Termos</th><th>Origem</th><th>Verificação</th><th>Validar</th><th></th></tr>
 {% for c in coupons %}
 <tr><td>{{ c.code }}</td><td>{{ c.percent }}</td><td>{{ c.fixed_amount }}</td><td>{{ c.max_discount }}</td><td>{{ c.min_purchase }}</td>
-<td>{{ c.valid_until.strftime('%d/%m/%Y') if c.valid_until else '—' }}</td><td>{{ c.terms or 'todos' }}</td><td>{{ c.source }}</td><td>{{ 'Não verificado' if c.verification_status == 'not_verified' else c.verification_status }}</td>
+<td>{{ c.valid_until.strftime('%d/%m/%Y') if c.valid_until else '—' }}</td><td>{{ c.terms or 'todos' }}</td><td>{{ c.source }}</td><td>{{ 'Verificado' if c.verification_status == 'verified' else 'Não verificado' }}</td><td><form class="inline" method="post" action="/cupons/{{ c.id }}/verify"><button class="sec" type="submit">{{ 'Revogar' if c.verification_status == 'verified' else 'Confirmar' }}</button></form></td>
 <td><form class="inline" method="post" action="/cupons/{{ c.id }}/delete"><button class="sec">Excluir</button></form></td></tr>
 {% endfor %}
 </table>
