@@ -227,6 +227,16 @@ def add_coupon(
     return RedirectResponse("/cupons", status_code=303)
 
 
+@app.post("/cupons/{cid}/verify")
+def verify_coupon(request: Request, cid: int):
+    need_admin(request)
+    with SessionLocal() as s:
+        coupon = s.get(Coupon, cid)
+        if coupon is None:
+            raise HTTPException(status_code=404, detail="Cupom não encontrado.")
+        coupon.verification_status = "not_verified" if coupon.verification_status == "verified" else "verified"
+        s.commit()
+    return RedirectResponse("/cupons", status_code=303)
 @app.post("/cupons/{cid}/delete")
 def delete_coupon(request: Request, cid: int):
     need_admin(request)
