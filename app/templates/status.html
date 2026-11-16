@@ -10,7 +10,7 @@
     <form method="post" action="/atualizar"><button type="submit" {{ 'disabled' if run.running }}>🔄 Buscar agora</button></form></div>
   {% if run.result %}
   <div class="row"><span>Último resultado ({{ run.result.finished|br_time }})</span>
-    <span>{{ run.result.terms_ok }} termos ok · {{ run.result.items }} produtos · {{ run.result.offers }} ofertas</span></div>
+    <span>{{ run.result.terms_ok }} termos ok · {{ run.result['items'] }} produtos · {{ run.result.offers }} ofertas</span></div>
   {% for e in run.result.errors %}
   <div class="row"><span>⚠️ {{ e }}</span></div>
   {% endfor %}
