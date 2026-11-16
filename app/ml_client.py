@@ -1,7 +1,7 @@
 """Cliente da API do Mercado Livre.
 
-ATENÇÃO: confirme em developers.mercadolivre.com.br quais endpoints seu app pode usar.
-Se a busca exigir permissões extras, ajuste apenas este arquivo.
+A busca geral de anúncios é tentada primeiro como recurso público. Se a API
+exigir autenticação, o cliente tenta novamente com o token da aplicação.
 """
 import time
 
@@ -35,17 +35,35 @@ def _get_token() -> str | None:
     return _token["value"]
 
 
-def search(term: str, limit: int) -> list[dict]:
-    headers = {}
-    token = _get_token()
+def _search_request(term: str, limit: int, token: str | None = None):
+    headers = {"accept": "application/json"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
-    r = requests.get(
+    return requests.get(
         f"{API}/sites/{config.ML_SITE}/search",
         params={"q": term, "limit": limit},
         headers=headers,
         timeout=20,
     )
+
+
+def search(term: str, limit: int) -> list[dict]:
+    # Não envia token desnecessariamente: a busca geral é tratada como recurso público.
+    r = _search_request(term, limit)
+
+    # Algumas permissões/recursos podem exigir autenticação. Nesse caso, tenta
+    # novamente com o token da aplicação, se as credenciais estiverem configuradas.
+    if r.status_code in (401, 403):
+        token = _get_token()
+        if token:
+            authenticated = _search_request(term, limit, token)
+            if authenticated.status_code not in (401, 403):
+                r = authenticated
+            else:
+                # Mantém a resposta autenticada para que o diagnóstico registre
+                # o status e o request-id da última tentativa.
+                r = authenticated
+
     r.raise_for_status()
     items = []
     for it in r.json().get("results", []):
