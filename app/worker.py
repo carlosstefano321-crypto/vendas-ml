@@ -17,7 +17,17 @@ from .pricing import affiliate_link, best_deal, brl
 def _explain(e: Exception) -> str:
     resp = getattr(e, "response", None)
     if resp is not None:
-        return f"HTTP {resp.status_code}: {resp.text[:200]}"
+        request_id = resp.headers.get("x-request-id") or resp.headers.get("x-correlation-id")
+        detail = f"HTTP {resp.status_code}: {resp.text[:200]}"
+        if resp.status_code == 403 and '"forbidden"' in (resp.text or "").lower():
+            detail += (
+                " | O Mercado Livre recusou o acesso ao endpoint de busca. "
+                "Confira o status/permissões da aplicação e a allowlist de IP no DevCenter; "
+                "se estiver tudo correto, abra chamado com o identificador da requisição."
+            )
+        if request_id:
+            detail += f" | request-id: {request_id}"
+        return detail
     return str(e)[:200]
 
 
