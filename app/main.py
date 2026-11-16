@@ -11,7 +11,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
 
 from . import config, worker
-from .db import Coupon, Offer, Product, SearchTerm, Setting, SessionLocal, init_db, utcnow
+from .db import Coupon, Offer, Product, ReviewQueue, SearchTerm, Setting, SessionLocal, init_db, utcnow
 from .pricing import affiliate_link, brl
 
 app = FastAPI(title="Ofertas ML")
@@ -122,8 +122,9 @@ def home(request: Request):
         stats = {
             "n_offers": s.query(func.count(Offer.product_id)).scalar() or 0,
             "best": s.query(func.max(Offer.discount_pct)).scalar(),
-            "n_coupons": s.query(func.count(Coupon.id)).filter(Coupon.active.is_(True)).scalar() or 0,
+            "n_coupons": s.query(func.count(Coupon.id)).filter(Coupon.active.is_(True), Coupon.verification_status == "verified").scalar() or 0,
             "n_terms": s.query(func.count(SearchTerm.id)).filter(SearchTerm.active.is_(True)).scalar() or 0,
+            "n_pending": s.query(func.count(ReviewQueue.product_id)).filter(ReviewQueue.status == "pending").scalar() or 0,
             "last": s.query(func.max(Product.updated_at)).scalar(),
         }
     return page(request, "index.html", "inicio", **stats)
@@ -140,6 +141,56 @@ def ofertas(request: Request):
     return page(request, "ofertas.html", "ofertas", rows=rows)
 
 
+@app.get("/revisao", response_class=HTMLResponse)
+def revisao(request: Request):
+    need_admin(request)
+    with SessionLocal() as s:
+        rows = (s.query(ReviewQueue, Offer, Product).join(Offer, Offer.product_id == ReviewQueue.product_id).join(Product, Product.id == ReviewQueue.product_id).filter(ReviewQueue.status == "pending").order_by(ReviewQueue.updated_at.desc()).all())
+        history = (s.query(ReviewQueue, Product).join(Product, Product.id == ReviewQueue.product_id).filter(ReviewQueue.status != "pending").order_by(ReviewQueue.updated_at.desc()).limit(30).all())
+    return page(request, "revisao.html", "revisao", rows=rows, history=history)
+
+@app.post("/revisao/{product_id}/salvar")
+def salvar_mensagem(request: Request, product_id: str, message: str = Form(...)):
+    need_admin(request)
+    if not message.strip():
+        raise HTTPException(status_code=400, detail="A mensagem não pode ficar vazia.")
+    with SessionLocal() as s:
+        item = s.get(ReviewQueue, product_id)
+        if item is None or item.status != "pending":
+            raise HTTPException(status_code=404, detail="Oferta não encontrada na fila de revisão.")
+        item.message = message.strip()[:4000]
+        item.updated_at = utcnow()
+        s.commit()
+    return RedirectResponse("/revisao", status_code=303)
+
+@app.post("/revisao/{product_id}/descartar")
+def descartar_oferta(request: Request, product_id: str):
+    need_admin(request)
+    with SessionLocal() as s:
+        item = s.get(ReviewQueue, product_id)
+        if item is None or item.status != "pending":
+            raise HTTPException(status_code=404, detail="Oferta não encontrada na fila de revisão.")
+        item.status = "rejected"
+        item.reviewed_at = utcnow()
+        item.updated_at = utcnow()
+        s.commit()
+    return RedirectResponse("/revisao", status_code=303)
+
+@app.post("/revisao/{product_id}/publicar")
+def publicar_oferta(request: Request, product_id: str):
+    need_admin(request)
+    with SessionLocal() as s:
+        item = s.get(ReviewQueue, product_id)
+        if item is None or item.status != "pending":
+            raise HTTPException(status_code=404, detail="Oferta não encontrada na fila de revisão.")
+        try:
+            worker.publish_telegram(s, item)
+        except Exception as exc:
+            item.error = str(exc)[:500]
+            s.commit()
+            return RedirectResponse("/revisao?erro=telegram", status_code=303)
+    return RedirectResponse("/revisao?publicada=1", status_code=303)
+
 @app.get("/cupons", response_class=HTMLResponse)
 def cupons(request: Request):
     need_admin(request)
@@ -155,16 +206,37 @@ def add_coupon(
     terms: str = Form(""), campaign_url: str = Form(""),
 ):
     need_admin(request)
+    code = code.strip().upper()
+    if not code:
+        raise HTTPException(status_code=400, detail="Informe o código do cupom.")
+    if min(percent, fixed_amount, max_discount, min_purchase) < 0 or percent > 100:
+        raise HTTPException(status_code=400, detail="Confira os valores do desconto e da compra mínima.")
+    if percent == 0 and fixed_amount == 0:
+        raise HTTPException(status_code=400, detail="Informe um desconto percentual ou um valor fixo.")
     until = None
     if valid_until:
-        until = datetime.strptime(valid_until, "%Y-%m-%d") + timedelta(hours=23, minutes=59)
+        try:
+            until = datetime.strptime(valid_until, "%Y-%m-%d") + timedelta(hours=23, minutes=59)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Data de validade inválida.")
     with SessionLocal() as s:
-        s.add(Coupon(code=code.strip(), percent=percent, fixed_amount=fixed_amount, max_discount=max_discount,
-                     min_purchase=min_purchase, valid_until=until, terms=terms, campaign_url=campaign_url))
+        s.add(Coupon(code=code, percent=percent, fixed_amount=fixed_amount, max_discount=max_discount,
+                     min_purchase=min_purchase, valid_until=until, terms=terms, campaign_url=campaign_url,
+                     source="manual", verification_status="not_verified"))
         s.commit()
     return RedirectResponse("/cupons", status_code=303)
 
 
+@app.post("/cupons/{cid}/verify")
+def verify_coupon(request: Request, cid: int):
+    need_admin(request)
+    with SessionLocal() as s:
+        coupon = s.get(Coupon, cid)
+        if coupon is None:
+            raise HTTPException(status_code=404, detail="Cupom não encontrado.")
+        coupon.verification_status = "not_verified" if coupon.verification_status == "verified" else "verified"
+        s.commit()
+    return RedirectResponse("/cupons", status_code=303)
 @app.post("/cupons/{cid}/delete")
 def delete_coupon(request: Request, cid: int):
     need_admin(request)

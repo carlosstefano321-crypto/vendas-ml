@@ -4,7 +4,7 @@ from . import config
 
 
 def coupon_applies(c, price: float, term: str, now: datetime) -> bool:
-    if not c.active:
+    if not c.active or getattr(c, "verification_status", "verified") != "verified":
         return False
     if c.valid_until and c.valid_until < now:
         return False

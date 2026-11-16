@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ofertas ML</title>
+<title>Vendas ML | Central de promoções</title>
 <style>
 :root{--bg:#f4f5f7;--card:#fff;--text:#1c1e21;--muted:#6b7280;--accent:#2563eb;--green:#15803d;--border:#e5e7eb;--side:#fff}
 @media (prefers-color-scheme:dark){:root{--bg:#0f1115;--card:#1a1d24;--text:#eceff4;--muted:#9aa3b2;--accent:#60a5fa;--green:#4ade80;--border:#2a2f3a;--side:#151820}}
@@ -46,11 +46,12 @@ footer{margin-top:30px}
 </head>
 <body>
 <aside class="side">
-  <div class="brand">🛒 Ofertas ML</div>
+  <div class="brand">⚡ Vendas ML</div>
   <nav>
     <a href="/" class="{{ 'on' if active == 'inicio' }}">🏠 Início</a>
     <a href="/ofertas" class="{{ 'on' if active == 'ofertas' }}">🔥 Ofertas</a>
     {% if admin %}
+    <a href="/revisao" class="{{ 'on' if active == 'revisao' }}">✍️ Revisão</a>
     <a href="/cupons" class="{{ 'on' if active == 'cupons' }}">🏷️ Cupons</a>
     <a href="/buscas" class="{{ 'on' if active == 'buscas' }}">🔎 Buscas</a>
     <a href="/status" class="{{ 'on' if active == 'status' }}">📊 Status</a>
@@ -60,7 +61,7 @@ footer{margin-top:30px}
 </aside>
 <main>
 {% block content %}{% endblock %}
-<footer class="muted">Este site usa links de afiliado: podemos receber comissão por compras feitas pelos links, sem custo extra para você. Preços e cupons podem mudar a qualquer momento.</footer>
+<footer class="muted">Ferramenta interna para pesquisar, calcular e revisar promoções antes da divulgação.</footer>
 </main>
 </body>
 </html>

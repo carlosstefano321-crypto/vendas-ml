@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, create_engine
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 from . import config
@@ -51,6 +51,8 @@ class Coupon(Base):
     terms: Mapped[str] = mapped_column(Text, default="")            # termos de busca aceitos (vazio = todos)
     campaign_url: Mapped[str] = mapped_column(Text, default="")     # link da campanha, para você conferir
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    source: Mapped[str] = mapped_column(String(20), default="manual")
+    verification_status: Mapped[str] = mapped_column(String(30), default="not_verified")
 
 
 class SearchTerm(Base):
@@ -78,5 +80,24 @@ class Offer(Base):
     posted: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
+class ReviewQueue(Base):
+    __tablename__ = "review_queue"
+    product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), primary_key=True)
+    message: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    error: Mapped[str] = mapped_column(Text, default="")
+
+
 def init_db() -> None:
     Base.metadata.create_all(engine)
+    # Migração aditiva, preservando todos os cupons existentes.
+    columns = {column["name"] for column in inspect(engine).get_columns("coupons")}
+    with engine.begin() as conn:
+        if "source" not in columns:
+            conn.execute(text("ALTER TABLE coupons ADD COLUMN source VARCHAR(20) NOT NULL DEFAULT 'manual'"))
+        if "verification_status" not in columns:
+            conn.execute(text("ALTER TABLE coupons ADD COLUMN verification_status VARCHAR(30) NOT NULL DEFAULT 'not_verified'"))

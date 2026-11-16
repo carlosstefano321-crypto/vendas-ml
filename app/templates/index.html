@@ -1,8 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Início</h1>
-<p class="muted">Resumo rápido. Clique em um bloco para abrir a área.</p>
+<h1>Central de operações</h1>
+<p class="muted">Encontre oportunidades, confira os descontos e aprove as mensagens antes de divulgar.</p>
 <div class="tiles">
+  <a class="tile" href="/revisao">
+    <div class="ic">✍️</div><h3>Aguardando revisão</h3>
+    <div class="num">{{ n_pending }}</div><p>Mensagens que precisam da sua aprovação</p>
+  </a>
   <a class="tile" href="/ofertas">
     <div class="ic">🔥</div><h3>Ofertas</h3>
     <div class="num">{{ n_offers }}</div>
