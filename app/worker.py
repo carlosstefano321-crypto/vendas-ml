@@ -10,7 +10,7 @@ from datetime import timedelta
 import requests
 
 from . import config, ml_client
-from .db import Coupon, Offer, PricePoint, Product, SearchTerm, Setting, SessionLocal, init_db, utcnow
+from .db import Coupon, Offer, PricePoint, Product, ReviewQueue, SearchTerm, Setting, SessionLocal, init_db, utcnow
 from .pricing import affiliate_link, best_deal, brl
 
 
@@ -74,68 +74,80 @@ def reference_price(s, p, run_start):
     return None
 
 
+def build_message(product, offer) -> str:
+    lines = [f"🔥 {product.title}", ""]
+    if offer.coupon_code:
+        lines += [f"💰 De {brl(offer.reference_price)} por {brl(offer.final_price)} com cupom",
+                  f"🏷 Cupom: {offer.coupon_code}"]
+    else:
+        lines += [f"💰 De {brl(offer.reference_price)} por {brl(offer.final_price)}"]
+    lines += [f"📉 {offer.discount_pct:.0f}% abaixo do preço de referência", "",
+              f"🛒 {affiliate_link(product.permalink)}", "",
+              "Preços e cupons podem mudar a qualquer momento."]
+    return "\n".join(lines)
+
+
 def build_offers(s, run_start, min_pct: float) -> int:
     now = utcnow()
     coupons = s.query(Coupon).filter(Coupon.active.is_(True)).all()
-    keep = set()
-    for p in s.query(Product).filter(Product.updated_at >= run_start).all():
-        ref = reference_price(s, p, run_start)
-        if not ref:
+    count = 0
+    for product in s.query(Product).filter(Product.updated_at >= run_start).all():
+        reference = reference_price(s, product, run_start)
+        if not reference:
             continue
-        final, coupon = best_deal(p.price, p.term, coupons, now)
-        pct = (ref - final) / ref * 100
-        if pct < min_pct:
+        final, coupon = best_deal(product.price, product.term, coupons, now)
+        discount_pct = (reference - final) / reference * 100
+        if discount_pct < min_pct:
             continue
-        keep.add(p.id)
         code = coupon.code if coupon else None
-        o = s.get(Offer, p.id)
-        if o is None:
-            s.add(Offer(product_id=p.id, coupon_code=code, price=p.price, final_price=final,
-                        reference_price=ref, discount_pct=round(pct, 1), created_at=now))
+        offer = s.get(Offer, product.id)
+        changed = offer is None
+        if offer is None:
+            offer = Offer(product_id=product.id, coupon_code=code, price=product.price,
+                          final_price=final, reference_price=reference,
+                          discount_pct=round(discount_pct, 1), created_at=now)
+            s.add(offer)
         else:
-            if abs(o.final_price - final) > 0.01 or o.coupon_code != code:
-                o.posted = False
-            o.coupon_code, o.price, o.final_price = code, p.price, final
-            o.reference_price, o.discount_pct = ref, round(pct, 1)
-    for o in s.query(Offer).all():
-        if o.product_id not in keep:
-            s.delete(o)
+            changed = abs(offer.final_price - final) > 0.01 or offer.coupon_code != code
+            offer.coupon_code, offer.price, offer.final_price = code, product.price, final
+            offer.reference_price, offer.discount_pct = reference, round(discount_pct, 1)
+            if changed:
+                offer.posted = False
+        review = s.get(ReviewQueue, product.id)
+        if review is None:
+            s.add(ReviewQueue(product_id=product.id, message=build_message(product, offer),
+                              status="pending", created_at=now, updated_at=now))
+        elif changed and review.status != "published":
+            review.message = build_message(product, offer)
+            review.status = "pending"
+            review.updated_at = now
+            review.reviewed_at = None
+            review.error = ""
+        count += 1
+    # Uma busca parcial não deve apagar ofertas encontradas em buscas anteriores.
     s.commit()
-    return len(keep)
+    return count
 
 
-def post_telegram(s, errors: list) -> None:
+def publish_telegram(s, review: ReviewQueue) -> None:
     if not (config.TELEGRAM_BOT_TOKEN and config.TELEGRAM_CHAT_ID):
-        return
-    pending = (
-        s.query(Offer).filter(Offer.posted.is_(False)).order_by(Offer.discount_pct.desc())
-        .limit(config.MAX_TELEGRAM_PER_RUN).all()
+        raise RuntimeError("Configure TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID antes de publicar.")
+    offer = s.get(Offer, review.product_id)
+    if offer is None:
+        raise RuntimeError("A oferta não existe mais.")
+    response = requests.post(
+        f"https://api.telegram.org/bot{config.TELEGRAM_BOT_TOKEN}/sendMessage",
+        json={"chat_id": config.TELEGRAM_CHAT_ID, "text": review.message,
+              "disable_web_page_preview": False},
+        timeout=20,
     )
-    for o in pending:
-        p = s.get(Product, o.product_id)
-        lines = [f"🔥 <b>{html.escape(p.title)}</b>", ""]
-        if o.coupon_code:
-            lines += [f"💰 De {brl(o.reference_price)} por <b>{brl(o.final_price)}</b> com cupom",
-                      f"🏷 Cupom: <code>{html.escape(o.coupon_code)}</code>"]
-        else:
-            lines += [f"💰 De {brl(o.reference_price)} por <b>{brl(o.final_price)}</b>"]
-        lines += [f"📉 {o.discount_pct:.0f}% abaixo do preço de referência", "",
-                  f'🛒 <a href="{html.escape(affiliate_link(p.permalink))}">Ver no Mercado Livre</a>', "",
-                  "<i>Preços e cupons podem mudar a qualquer momento.</i>"]
-        try:
-            r = requests.post(
-                f"https://api.telegram.org/bot{config.TELEGRAM_BOT_TOKEN}/sendMessage",
-                json={"chat_id": config.TELEGRAM_CHAT_ID, "text": "\n".join(lines),
-                      "parse_mode": "HTML", "disable_web_page_preview": False},
-                timeout=20,
-            )
-            r.raise_for_status()
-            o.posted = True
-            s.commit()
-        except Exception as e:  # noqa: BLE001
-            errors.append("Telegram: falha ao publicar (confira o token e o ID do canal).")
-            break
-
+    response.raise_for_status()
+    review.status = "published"
+    review.published_at = utcnow()
+    review.reviewed_at = utcnow()
+    review.error = ""
+    offer.posted = True
+    s.commit()
 
 def cleanup(s) -> None:
     s.query(PricePoint).filter(PricePoint.ts < utcnow() - timedelta(days=60)).delete()
@@ -154,7 +166,7 @@ def run() -> dict:
             errors.append("Nenhuma busca funcionou; ofertas anteriores mantidas.")
         else:
             result["offers"] = build_offers(s, run_start, get_min_pct(s))
-            post_telegram(s, errors)
+            # Publicação manual: a busca apenas cria itens na fila de revisão.
             cleanup(s)
     result["finished"] = utcnow()
     return result
