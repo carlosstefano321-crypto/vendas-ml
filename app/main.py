@@ -206,12 +206,23 @@ def add_coupon(
     terms: str = Form(""), campaign_url: str = Form(""),
 ):
     need_admin(request)
+    code = code.strip().upper()
+    if not code:
+        raise HTTPException(status_code=400, detail="Informe o código do cupom.")
+    if min(percent, fixed_amount, max_discount, min_purchase) < 0 or percent > 100:
+        raise HTTPException(status_code=400, detail="Confira os valores do desconto e da compra mínima.")
+    if percent == 0 and fixed_amount == 0:
+        raise HTTPException(status_code=400, detail="Informe um desconto percentual ou um valor fixo.")
     until = None
     if valid_until:
-        until = datetime.strptime(valid_until, "%Y-%m-%d") + timedelta(hours=23, minutes=59)
+        try:
+            until = datetime.strptime(valid_until, "%Y-%m-%d") + timedelta(hours=23, minutes=59)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Data de validade inválida.")
     with SessionLocal() as s:
-        s.add(Coupon(code=code.strip(), percent=percent, fixed_amount=fixed_amount, max_discount=max_discount,
-                     min_purchase=min_purchase, valid_until=until, terms=terms, campaign_url=campaign_url))
+        s.add(Coupon(code=code, percent=percent, fixed_amount=fixed_amount, max_discount=max_discount,
+                     min_purchase=min_purchase, valid_until=until, terms=terms, campaign_url=campaign_url,
+                     source="manual", verification_status="not_verified"))
         s.commit()
     return RedirectResponse("/cupons", status_code=303)
 
