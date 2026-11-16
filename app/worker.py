@@ -94,10 +94,26 @@ def build_offers(s, run_start, min_pct: float) -> int:
     for product in s.query(Product).filter(Product.updated_at >= run_start).all():
         reference = reference_price(s, product, run_start)
         if not reference:
+            stale = s.get(Offer, product.id)
+            if stale is not None:
+                s.delete(stale)
+            review = s.get(ReviewQueue, product.id)
+            if review is not None and review.status == "pending":
+                review.status = "expired"
+                review.updated_at = now
+                review.error = "Preço de referência indisponível nesta busca."
             continue
         final, coupon = best_deal(product.price, product.term, coupons, now)
         discount_pct = (reference - final) / reference * 100
         if discount_pct < min_pct:
+            stale = s.get(Offer, product.id)
+            if stale is not None:
+                s.delete(stale)
+            review = s.get(ReviewQueue, product.id)
+            if review is not None and review.status == "pending":
+                review.status = "expired"
+                review.updated_at = now
+                review.error = "A oferta não atingiu mais o desconto mínimo."
             continue
         code = coupon.code if coupon else None
         offer = s.get(Offer, product.id)
