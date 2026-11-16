@@ -122,7 +122,7 @@ def home(request: Request):
         stats = {
             "n_offers": s.query(func.count(Offer.product_id)).scalar() or 0,
             "best": s.query(func.max(Offer.discount_pct)).scalar(),
-            "n_coupons": s.query(func.count(Coupon.id)).filter(Coupon.active.is_(True)).scalar() or 0,
+            "n_coupons": s.query(func.count(Coupon.id)).filter(Coupon.active.is_(True), Coupon.verification_status == "verified").scalar() or 0,
             "n_terms": s.query(func.count(SearchTerm.id)).filter(SearchTerm.active.is_(True)).scalar() or 0,
             "n_pending": s.query(func.count(ReviewQueue.product_id)).filter(ReviewQueue.status == "pending").scalar() or 0,
             "last": s.query(func.max(Product.updated_at)).scalar(),
