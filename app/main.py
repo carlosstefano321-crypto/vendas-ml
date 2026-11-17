@@ -10,7 +10,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
 
-from . import config, worker
+from . import config, worker, coupon_source
 from .db import Coupon, Offer, Product, ReviewQueue, SearchTerm, Setting, SessionLocal, init_db, utcnow
 from .pricing import affiliate_link, brl
 
@@ -30,6 +30,7 @@ templates.env.filters["br_time"] = br_time
 # ---------- busca rodando dentro do site ----------
 _lock = threading.Lock()
 RUN = {"running": False, "result": None}
+COUPON_DIAGNOSTIC = None
 
 
 def _do_run() -> None:
@@ -196,7 +197,23 @@ def cupons(request: Request):
     need_admin(request)
     with SessionLocal() as s:
         coupons = s.query(Coupon).order_by(Coupon.id.desc()).all()
-    return page(request, "cupons.html", "cupons", coupons=coupons)
+    return page(request, "cupons.html", "cupons", coupons=coupons, diagnostic=COUPON_DIAGNOSTIC)
+
+
+@app.post("/cupons/diagnostico")
+def diagnosticar_cupons(request: Request):
+    need_admin(request)
+    global COUPON_DIAGNOSTIC
+    try:
+        COUPON_DIAGNOSTIC = coupon_source.inspect_public_coupon_page()
+    except Exception as exc:  # noqa: BLE001
+        response = getattr(exc, "response", None)
+        status = getattr(response, "status_code", None)
+        COUPON_DIAGNOSTIC = {
+            "error": f"Falha ao acessar a página pública: HTTP {status}" if status else f"Falha ao acessar a página pública: {type(exc).__name__}",
+            "message": "Nenhum cupom foi importado. Verifique a conectividade do serviço e tente novamente.",
+        }
+    return RedirectResponse("/cupons", status_code=303)
 
 
 @app.post("/cupons")
