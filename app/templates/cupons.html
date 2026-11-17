@@ -13,7 +13,7 @@
     {% if diagnostic.message %}<p>{{ diagnostic.message }}</p>{% endif %}
     {% if diagnostic.page_markers %}<p>Marcadores encontrados: {{ diagnostic.page_markers }}</p>{% endif %}
     {% if diagnostic.candidate_endpoints %}<p><b>Possíveis endpoints:</b></p><ul>{% for endpoint in diagnostic.candidate_endpoints %}<li><code>{{ endpoint }}</code></li>{% endfor %}</ul>{% endif %}
-    {% if diagnostic.script_sources %}<details><summary>Arquivos JavaScript identificados</summary><ul>{% for src in diagnostic.script_sources %}<li><code>{{ src }}</code></li>{% endfor %}</ul></details>{% endif %}
+    {% if diagnostic.scripts_inspected %}<details open><summary>Arquivos JavaScript analisados</summary><ul>{% for item in diagnostic.scripts_inspected %}<li><code>{{ item.url }}</code> · HTTP {{ item.http_status }} · {{ item.bytes_scanned }} bytes · {{ item.candidate_count }} possíveis rotas</li>{% endfor %}</ul></details>{% endif %}{% if diagnostic.script_errors %}<p class="muted">Falhas ao ler alguns scripts: {{ diagnostic.script_errors|join(", ") }}</p>{% endif %}
 </section>
 <p class="muted">O cadastro manual continua disponível, mas cupons importados automaticamente só serão ativados quando as regras e a origem forem identificadas com segurança.</p>
 <p class="muted">Cadastre cupons manualmente. Eles só entram no cálculo depois de você confirmar as regras e a validade. A confirmação é manual e não representa validação online pelo Mercado Livre.</p>
