@@ -1,3 +1,4 @@
+import json
 import os
 import secrets
 import threading
@@ -30,7 +31,6 @@ templates.env.filters["br_time"] = br_time
 # ---------- busca rodando dentro do site ----------
 _lock = threading.Lock()
 RUN = {"running": False, "result": None}
-COUPON_DIAGNOSTIC = None
 
 
 def _do_run() -> None:
@@ -197,24 +197,32 @@ def cupons(request: Request):
     need_admin(request)
     with SessionLocal() as s:
         coupons = s.query(Coupon).order_by(Coupon.id.desc()).all()
-    return page(request, "cupons.html", "cupons", coupons=coupons, diagnostic=COUPON_DIAGNOSTIC)
+        diagnostic_row = s.get(Setting, "coupon_page_diagnostic")
+        diagnostic = json.loads(diagnostic_row.value) if diagnostic_row and diagnostic_row.value else None
+    return page(request, "cupons.html", "cupons", coupons=coupons, diagnostic=diagnostic)
 
 
 @app.post("/cupons/diagnostico")
 def diagnosticar_cupons(request: Request):
     need_admin(request)
-    global COUPON_DIAGNOSTIC
     try:
-        COUPON_DIAGNOSTIC = coupon_source.inspect_public_coupon_page()
+        diagnostic = coupon_source.inspect_public_coupon_page()
     except Exception as exc:  # noqa: BLE001
         response = getattr(exc, "response", None)
         status = getattr(response, "status_code", None)
-        COUPON_DIAGNOSTIC = {
+        diagnostic = {
             "error": f"Falha ao acessar a página pública: HTTP {status}" if status else f"Falha ao acessar a página pública: {type(exc).__name__}",
-            "message": "Nenhum cupom foi importado. Verifique a conectividade do serviço e tente novamente.",
+            "message": "Nenhum cupom foi importado. Nenhum dado existente foi alterado.",
         }
+    with SessionLocal() as s:
+        row = s.get(Setting, "coupon_page_diagnostic")
+        value = json.dumps(diagnostic, ensure_ascii=False)[:60000]
+        if row is None:
+            s.add(Setting(key="coupon_page_diagnostic", value=value))
+        else:
+            row.value = value
+        s.commit()
     return RedirectResponse("/cupons", status_code=303)
-
 
 @app.post("/cupons")
 def add_coupon(
