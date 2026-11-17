@@ -1,3 +1,4 @@
+import json
 import os
 import secrets
 import threading
@@ -10,7 +11,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
 
-from . import config, worker
+from . import config, worker, coupon_source
 from .db import Coupon, Offer, Product, ReviewQueue, SearchTerm, Setting, SessionLocal, init_db, utcnow
 from .pricing import affiliate_link, brl
 
@@ -196,8 +197,32 @@ def cupons(request: Request):
     need_admin(request)
     with SessionLocal() as s:
         coupons = s.query(Coupon).order_by(Coupon.id.desc()).all()
-    return page(request, "cupons.html", "cupons", coupons=coupons)
+        diagnostic_row = s.get(Setting, "coupon_page_diagnostic")
+        diagnostic = json.loads(diagnostic_row.value) if diagnostic_row and diagnostic_row.value else None
+    return page(request, "cupons.html", "cupons", coupons=coupons, diagnostic=diagnostic)
 
+
+@app.post("/cupons/diagnostico")
+def diagnosticar_cupons(request: Request):
+    need_admin(request)
+    try:
+        diagnostic = coupon_source.inspect_public_coupon_page()
+    except Exception as exc:  # noqa: BLE001
+        response = getattr(exc, "response", None)
+        status = getattr(response, "status_code", None)
+        diagnostic = {
+            "error": f"Falha ao acessar a página pública: HTTP {status}" if status else f"Falha ao acessar a página pública: {type(exc).__name__}",
+            "message": "Nenhum cupom foi importado. Nenhum dado existente foi alterado.",
+        }
+    with SessionLocal() as s:
+        row = s.get(Setting, "coupon_page_diagnostic")
+        value = json.dumps(diagnostic, ensure_ascii=False)[:60000]
+        if row is None:
+            s.add(Setting(key="coupon_page_diagnostic", value=value))
+        else:
+            row.value = value
+        s.commit()
+    return RedirectResponse("/cupons", status_code=303)
 
 @app.post("/cupons")
 def add_coupon(

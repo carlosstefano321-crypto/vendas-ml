@@ -1,6 +1,21 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Cupons</h1>
+<p class="muted">A fonte automática está em investigação. O diagnóstico acessa somente a página pública, sem usar sua sessão, cookies ou credenciais.</p>
+<section class="panel">
+  <div class="row"><span><b>Fonte pública do Mercado Livre</b><br><span class="muted">Verificar se a página entrega os cupons no HTML ou aponta para chamadas de dados.</span></span>
+    <form method="post" action="/cupons/diagnostico"><button type="submit">🔎 Diagnosticar página</button></form>
+  </div>
+  {% if diagnostic %}
+    {% if diagnostic.error %}<p>{{ diagnostic.error }}</p>{% endif %}
+    {% if diagnostic.http_status %}<p>HTTP {{ diagnostic.http_status }} · {{ diagnostic.html_bytes }} bytes · {{ diagnostic.script_count }} scripts</p>{% endif %}
+    {% if diagnostic.title %}<p><b>{{ diagnostic.title }}</b></p>{% endif %}
+    {% if diagnostic.message %}<p>{{ diagnostic.message }}</p>{% endif %}
+    {% if diagnostic.page_markers %}<p>Marcadores encontrados: {{ diagnostic.page_markers }}</p>{% endif %}
+    {% if diagnostic.candidate_endpoints %}<p><b>Possíveis endpoints:</b></p><ul>{% for endpoint in diagnostic.candidate_endpoints %}<li><code>{{ endpoint }}</code></li>{% endfor %}</ul>{% endif %}
+    {% if diagnostic.scripts_inspected %}<details open><summary>Arquivos JavaScript analisados</summary><ul>{% for item in diagnostic.scripts_inspected %}<li><code>{{ item.url }}</code> · HTTP {{ item.http_status }} · {{ item.bytes_scanned }} bytes · {{ item.candidate_count }} possíveis rotas</li>{% endfor %}</ul></details>{% endif %}{% if diagnostic.script_errors %}<p class="muted">Falhas ao ler alguns scripts: {{ diagnostic.script_errors|join(", ") }}</p>{% endif %}
+</section>
+<p class="muted">O cadastro manual continua disponível, mas cupons importados automaticamente só serão ativados quando as regras e a origem forem identificadas com segurança.</p>
 <p class="muted">Cadastre cupons manualmente. Eles só entram no cálculo depois de você confirmar as regras e a validade. A confirmação é manual e não representa validação online pelo Mercado Livre.</p>
 <form class="add" method="post" action="/cupons">
 <label>Código<input name="code" required></label>
