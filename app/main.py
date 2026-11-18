@@ -214,6 +214,9 @@ def diagnosticar_cupons(request: Request):
             "error": f"Falha ao acessar a página pública: HTTP {status}" if status else f"Falha ao acessar a página pública: {type(exc).__name__}",
             "message": "Nenhum cupom foi importado. Nenhum dado existente foi alterado.",
         }
+    diagnostic["checked_at"] = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    diagnostic["endpoint_count"] = len(diagnostic.get("candidate_endpoints", []))
+    diagnostic["scripts_ok"] = len(diagnostic.get("scripts_inspected", []))
     with SessionLocal() as s:
         row = s.get(Setting, "coupon_page_diagnostic")
         value = json.dumps(diagnostic, ensure_ascii=False)[:60000]
