@@ -8,7 +8,8 @@
   </div>
   {% if diagnostic %}
     {% if diagnostic.error %}<p>{{ diagnostic.error }}</p>{% endif %}
-    {% if diagnostic.http_status %}<p>HTTP {{ diagnostic.http_status }} · {{ diagnostic.html_bytes }} bytes · {{ diagnostic.script_count }} scripts</p>{% endif %}
+    {% if diagnostic.checked_at %}<p class="muted">Última verificação: {{ diagnostic.checked_at }}</p>{% endif %}
+    {% if diagnostic.http_status %}<div class="row"><span><b>HTTP {{ diagnostic.http_status }}</b><br><span class="muted">{{ diagnostic.html_bytes }} bytes recebidos · {{ diagnostic.script_count }} scripts encontrados</span></span><span><b>{{ diagnostic.scripts_ok }} scripts analisados</b><br><span class="muted">{{ diagnostic.endpoint_count }} possíveis endpoints</span></span></div>{% endif %}
     {% if diagnostic.title %}<p><b>{{ diagnostic.title }}</b></p>{% endif %}
     {% if diagnostic.message %}<p>{{ diagnostic.message }}</p>{% endif %}
     {% if diagnostic.page_markers %}<p>Marcadores encontrados: {{ diagnostic.page_markers }}</p>{% endif %}
